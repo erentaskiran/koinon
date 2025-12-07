@@ -485,36 +485,6 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      {/* Header */}
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-zinc-900 dark:text-zinc-100" />
-            <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-              Koinon
-            </span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/dashboard")}
-            >
-              Dashboard
-            </Button>
-            <div className="flex items-center space-x-2 text-sm text-zinc-600 dark:text-zinc-400">
-              <User className="h-4 w-4" />
-              <span>{user?.email}</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
