@@ -1,25 +1,17 @@
-"use client";
-
-import { useAuth } from "@/contexts/auth-context";
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import { BookOpen, Library, Users, TrendingUp, Loader2 } from "lucide-react";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { BookOpen, Library, Users, TrendingUp } from "lucide-react";
 
-export default function Home() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-900 dark:text-zinc-100" />
-      </div>
-    );
-  }
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (user) {
-    router.push("/dashboard");
-    return null;
+    redirect("/dashboard");
   }
 
   return (
@@ -34,10 +26,12 @@ export default function Home() {
             </span>
           </div>
           <div className="space-x-4">
-            <Button variant="outline" onClick={() => router.push("/login")}>
-              Sign In
+            <Button variant="outline" asChild>
+              <Link href="/login">Sign In</Link>
             </Button>
-            <Button onClick={() => router.push("/signup")}>Get Started</Button>
+            <Button asChild>
+              <Link href="/signup">Get Started</Link>
+            </Button>
           </div>
         </nav>
 
@@ -50,15 +44,11 @@ export default function Home() {
             all in one place.
           </p>
           <div className="flex items-center justify-center gap-4">
-            <Button size="lg" onClick={() => router.push("/signup")}>
-              Start Reading
+            <Button size="lg" asChild>
+              <Link href="/signup">Start Reading</Link>
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => router.push("/login")}
-            >
-              Sign In
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/login">Sign In</Link>
             </Button>
           </div>
         </div>
