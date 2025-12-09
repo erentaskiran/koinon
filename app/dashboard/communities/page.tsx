@@ -1,11 +1,6 @@
-"use client";
-
-import useSWR from "swr";
 import { CreateCommunityDialog } from "@/components/community/create-community-dialog";
 import { CommunityCard } from "@/components/community/community-card";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/contexts/auth-context";
-import { Skeleton } from "@/components/ui/skeleton";
+import { createClient } from "@/lib/supabase/server";
 import { Users } from "lucide-react";
 
 interface Community {
@@ -19,13 +14,16 @@ interface Community {
   member_count?: number;
 }
 
-export default function CommunitiesPage() {
-  const { user } = useAuth();
-  const supabase = createClient();
+export default async function CommunitiesPage() {
+  const supabase = await createClient();
 
-  const fetcher = async () => {
-    if (!user) return [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  let communities: Community[] = [];
+
+  if (user) {
     const { data, error } = await supabase
       .from("communities")
       .select(
@@ -39,19 +37,14 @@ export default function CommunitiesPage() {
       )
       .eq("community_members.user_id", user.id);
 
-    if (error) throw error;
-
-    return data.map((item: any) => ({
-      ...item,
-      user_role: item.community_members[0].role,
-      member_count: 1, // Placeholder
-    }));
-  };
-
-  const { data: communities = [], isLoading } = useSWR(
-    user ? ["communities", user.id] : null,
-    fetcher
-  );
+    if (!error && data) {
+      communities = data.map((item: any) => ({
+        ...item,
+        user_role: item.community_members[0].role,
+        member_count: 1, // Placeholder
+      }));
+    }
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-7xl space-y-8">
@@ -65,13 +58,7 @@ export default function CommunitiesPage() {
         <CreateCommunityDialog />
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-[200px] w-full rounded-xl" />
-          ))}
-        </div>
-      ) : communities.length > 0 ? (
+      {communities.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {communities.map((community) => (
             <CommunityCard key={community.id} community={community} />

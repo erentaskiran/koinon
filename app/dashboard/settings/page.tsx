@@ -95,16 +95,6 @@ export default function SettingsPage() {
     progresses: number;
   } | null>(null);
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      toast.success("Signed out successfully");
-      router.push("/");
-    } catch (error) {
-      toast.error("Failed to sign out");
-    }
-  };
-
   const fetchReadingProgresses = async (token: string, bookIds: string[]) => {
     try {
       const response = await fetch("https://literal.club/graphql/", {
