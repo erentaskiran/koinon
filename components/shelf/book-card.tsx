@@ -97,9 +97,13 @@ export function BookCard({ book, userBook }: BookCardProps) {
         .join(", ")
     : null;
 
+  const progressPercent = userBook?.capacity
+    ? Math.min((userBook.progress / userBook.capacity) * 100, 100)
+    : 0;
+
   return (
-    <div className="flex gap-4 group relative">
-      <div className="flex-shrink-0 w-16 h-24 bg-zinc-100 rounded overflow-hidden">
+    <div className="flex gap-4 group items-center">
+      <div className="flex-shrink-0 w-12 h-16 bg-zinc-100 rounded overflow-hidden">
         {book.cover ? (
           <img
             src={book.cover}
@@ -108,20 +112,44 @@ export function BookCard({ book, userBook }: BookCardProps) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <BookOpen className="h-6 w-6 text-zinc-300" />
+            <BookOpen className="h-5 w-5 text-zinc-300" />
           </div>
         )}
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-sm line-clamp-2 mb-1">{book.title}</h4>
-        {authors && <p className="text-xs text-zinc-500 truncate">{authors}</p>}
 
-        <div className="flex flex-wrap gap-1 mt-2">
-          <Badge variant="secondary" className="text-xs">
-            {displayStatus}
-          </Badge>
+      <div className="flex-1 min-w-0 flex items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-sm truncate">{book.title}</h4>
+          {authors && (
+            <p className="text-xs text-zinc-500 truncate">{authors}</p>
+          )}
+        </div>
+
+        {progressPercent > 0 && (
+          <div className="hidden sm:flex items-center gap-2 w-32">
+            <div className="flex-1 bg-zinc-100 rounded-full h-2">
+              <div
+                className="bg-emerald-500 h-2 rounded-full transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="text-xs text-zinc-500 w-10 text-right">
+              {Math.round(progressPercent)}%
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          {displayStatus !== "Unknown" && (
+            <Badge variant="secondary" className="text-xs whitespace-nowrap">
+              {displayStatus}
+            </Badge>
+          )}
           {displayProgress && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge
+              variant="outline"
+              className="text-xs whitespace-nowrap hidden md:inline-flex"
+            >
               {displayProgress}
             </Badge>
           )}
@@ -133,7 +161,7 @@ export function BookCard({ book, userBook }: BookCardProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+            className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
           >
             <Pencil className="h-4 w-4" />
           </Button>

@@ -22,17 +22,28 @@ export default async function ShelfPage() {
     return userBooks?.find((ub) => ub.book_id === bookId);
   };
 
+  // Sort books by progress percentage (high to low)
+  const sortedBooks = books?.slice().sort((a, b) => {
+    const userBookA = getUserBook(a.id);
+    const userBookB = getUserBook(b.id);
+    const progressA = userBookA?.capacity
+      ? (userBookA.progress / userBookA.capacity) * 100
+      : 0;
+    const progressB = userBookB?.capacity
+      ? (userBookB.progress / userBookB.capacity) * 100
+      : 0;
+    return progressB - progressA;
+  });
+
   return (
     <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {books &&
-          books.length > 0 &&
-          books.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              userBook={getUserBook(book.id)}
-            />
+      <div className="flex flex-col divide-y divide-zinc-200">
+        {sortedBooks &&
+          sortedBooks.length > 0 &&
+          sortedBooks.map((book) => (
+            <div key={book.id} className="py-3 first:pt-0 last:pb-0">
+              <BookCard book={book} userBook={getUserBook(book.id)} />
+            </div>
           ))}
       </div>
       {(!books || books.length === 0) && (
