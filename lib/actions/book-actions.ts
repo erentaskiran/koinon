@@ -26,7 +26,7 @@ export async function updateUserBook(input: UpdateUserBookInput) {
   const { bookId, status, progress, capacity, unit } = input;
 
   const updateData: Record<string, unknown> = {
-    synced_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   if (status !== undefined) {

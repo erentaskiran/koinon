@@ -6,27 +6,28 @@
 
 ```sql
 CREATE TABLE books (
-  id TEXT PRIMARY KEY,
-  slug TEXT NOT NULL,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  isbn13 TEXT UNIQUE,  -- Used for deduplication when available
+  isbn10 TEXT,
+  slug TEXT,
   title TEXT NOT NULL,
   subtitle TEXT,
   description TEXT,
-  isbn10 TEXT,
-  isbn13 TEXT,
   language TEXT,
   page_count INTEGER,
   published_date TEXT,
   publisher TEXT,
   cover TEXT,
   authors JSONB,
-  gradient_colors JSONB,
-  synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  subjects JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Add indexes for faster queries
 CREATE INDEX idx_books_title ON books(title);
-CREATE INDEX idx_books_isbn10 ON books(isbn10);
 CREATE INDEX idx_books_isbn13 ON books(isbn13);
+CREATE INDEX idx_books_isbn10 ON books(isbn10);
 
 -- Enable RLS (optional - books can be public or user-specific)
 ALTER TABLE books ENABLE ROW LEVEL SECURITY;
@@ -36,7 +37,7 @@ CREATE POLICY "Authenticated users can view books"
   ON books FOR SELECT
   USING (auth.role() = 'authenticated');
 
--- Allow all authenticated users to insert/update books (for syncing)
+-- Allow all authenticated users to insert/update books
 CREATE POLICY "Authenticated users can insert books"
   ON books FOR INSERT
   WITH CHECK (auth.role() = 'authenticated');
@@ -46,26 +47,25 @@ CREATE POLICY "Authenticated users can update books"
   USING (auth.role() = 'authenticated');
 ```
 
-### 2. user_books table (merged from reading_states and reading_progresses)
+### 2. user_books table
 
-This table combines reading status and progress tracking into a single table for simpler queries and data management.
+This table tracks a user's reading status and progress for books.
 
 ```sql
 CREATE TABLE user_books (
-  id TEXT PRIMARY KEY,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-  profile_id TEXT NOT NULL,
-  -- Reading status fields (from reading_states)
-  status TEXT NOT NULL DEFAULT 'IS_READING',
-  -- Reading progress fields (from reading_progresses)
+  book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  -- Reading status
+  status TEXT NOT NULL DEFAULT 'WANT_TO_READ',
+  -- Reading progress
   progress INTEGER NOT NULL DEFAULT 0,
   capacity INTEGER,
   unit TEXT DEFAULT 'pages',
   completed BOOLEAN NOT NULL DEFAULT false,
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(user_id, book_id)
 );
 
@@ -264,21 +264,33 @@ CREATE POLICY "Users can update own profile"
 
 ## Notes
 
-- **user_books**: This table combines the old `reading_states` and `reading_progresses` tables into one unified table for simpler data management.
-- **Status values**: `IS_READING`, `COMPLETED`, `PAUSED`, `ABANDONED`
+- **books**: Books are sourced from Open Library API. The `isbn13` is required and used as the unique identifier for deduplication.
+- **user_books**: Tracks a user's relationship with a book (status, progress).
+- **Status values**: `WANT_TO_READ`, `IS_READING`, `COMPLETED`, `PAUSED`, `ABANDONED`
 - **Unit values**: Typically `pages`, `chapters`, or `%`
 - **Profiles**: Added to allow displaying user names/avatars in communities.
 - The `user_id` field in user_books links to the authenticated user in Supabase
 - RLS (Row Level Security) policies ensure users can only access their own reading data
 - The `books` table is accessible to all authenticated users (shared resource)
 - The `UNIQUE(user_id, book_id)` constraint prevents duplicate entries for the same book per user
-- The `synced_at` field tracks when the data was last synced from Literal.club
 - Foreign key constraints ensure data integrity between tables
-- Authors and gradient colors are stored as JSONB for flexibility
+- Authors and subjects are stored as JSONB for flexibility
 - Books table uses `ON DELETE CASCADE` so when a book is deleted, all related user_books are also deleted
+
+## Open Library API
+
+Books are fetched from Open Library. Key endpoints:
+
+- Search: `https://openlibrary.org/search.json?q={query}`
+- Work: `https://openlibrary.org/works/{work_id}.json`
+- Edition: `https://openlibrary.org/books/{edition_id}.json`
+- Cover: `https://covers.openlibrary.org/b/id/{cover_id}-{size}.jpg` (sizes: S, M, L)
+- Author: `https://openlibrary.org/authors/{author_id}.json`
 
 ## Data Flow
 
-1. User syncs from Literal.club
-2. Books are saved/updated in the `books` table
-3. Reading status and progress are saved together in the `user_books` table
+1. User searches for books via Open Library API
+2. User adds a book to their shelf
+3. Book data is saved to the `books` table (if not already exists)
+4. User's reading status/progress is saved to `user_books` table
+5. User can update their progress and status over time

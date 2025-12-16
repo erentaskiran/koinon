@@ -71,7 +71,7 @@ export async function CommunityFeed({
         progress,
         capacity,
         unit,
-        synced_at,
+        updated_at,
         book:books (
           title,
           cover,
@@ -81,7 +81,7 @@ export async function CommunityFeed({
     )
     .eq("status", "IS_READING")
     .in("user_id", memberIds)
-    .order("synced_at", { ascending: false });
+    .order("updated_at", { ascending: false });
 
   const profilesMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
@@ -91,7 +91,6 @@ export async function CommunityFeed({
     const activity: ReadingActivity = {
       ...item,
       profile: profilesMap.get(item.user_id),
-      updated_at: item.synced_at,
     };
     const existing = userBooksMap.get(item.user_id) || [];
     existing.push(activity);
