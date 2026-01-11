@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,6 +25,45 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleSocialLogin = async (provider: "google" | "azure") => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+
+      // Get the base URL - prefer environment variable for consistency
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+
+      const redirectTo = `${baseUrl}/auth/callback`;
+
+      console.log("OAuth redirect URL:", redirectTo); // Debug log
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          // Ensure we skip the browser redirect handling for better control
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) {
+        console.error("OAuth error:", error);
+        setError(error.message);
+        setLoading(false);
+      }
+
+      // Note: If successful, the browser will redirect, so no need to setLoading(false)
+    } catch (err) {
+      console.error("Unexpected error during social login:", err);
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,17 +91,50 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>
-            Enter your email and password to sign in to your account
-          </CardDescription>
+          <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Social Sign In Buttons */}
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => handleSocialLogin("google")}
+              disabled={loading}
+            >
+              Continue with Google
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => handleSocialLogin("azure")}
+              disabled={loading}
+            >
+              Continue with Microsoft
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with email
+              </span>
+            </div>
+          </div>
+
+          {/* Email Sign In Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -90,23 +163,23 @@ export default function LoginPage() {
                 </Link>
               </p>
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="font-medium text-foreground hover:underline"
-              >
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <p className="text-center text-sm text-muted-foreground w-full">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/signup"
+              className="font-medium text-foreground hover:underline"
+            >
+              Sign up
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );

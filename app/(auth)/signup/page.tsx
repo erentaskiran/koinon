@@ -17,9 +17,11 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function SignupPage() {
   const router = useRouter();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -27,10 +29,55 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const handleSocialSignup = async (provider: "google" | "azure") => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+
+      // Get the base URL - prefer environment variable for consistency
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+
+      const redirectTo = `${baseUrl}/auth/callback`;
+
+      console.log("OAuth redirect URL:", redirectTo); // Debug log
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          // Ensure we skip the browser redirect handling for better control
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) {
+        console.error("OAuth error:", error);
+        setError(error.message);
+        setLoading(false);
+      }
+
+      // Note: If successful, the browser will redirect, so no need to setLoading(false)
+    } catch (err) {
+      console.error("Unexpected error during social signup:", err);
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
+    }
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    if (!displayName.trim()) {
+      setError("Please enter your display name");
+      setLoading(false);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -46,21 +93,39 @@ export default function SignupPage() {
 
     const supabase = createClient();
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          full_name: displayName,
+        },
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
-    } else {
-      setSuccess(true);
-      setLoading(false);
+      return;
     }
+
+    // Create profile entry
+    if (data.user) {
+      const { error: profileError } = await supabase.from("profiles").insert({
+        id: data.user.id,
+        full_name: displayName,
+        email: email,
+      });
+
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+        // Don't show error to user as signup was successful
+      }
+    }
+
+    setSuccess(true);
+    setLoading(false);
   };
 
   if (success) {
@@ -92,16 +157,63 @@ export default function SignupPage() {
             Create an account
           </CardTitle>
           <CardDescription>
-            Enter your email and password to create your account
+            Enter your information to create your account
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSignup}>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Social Sign Up Buttons */}
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => handleSocialSignup("google")}
+              disabled={loading}
+            >
+              Continue with Google
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => handleSocialSignup("azure")}
+              disabled={loading}
+            >
+              Continue with Microsoft
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with email
+              </span>
+            </div>
+          </div>
+
+          {/* Email Sign Up Form */}
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                type="text"
+                placeholder="Your Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -138,23 +250,23 @@ export default function SignupPage() {
                 minLength={6}
               />
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign Up
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-foreground hover:underline"
-              >
-                Sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <p className="text-center text-sm text-muted-foreground w-full">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-foreground hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
