@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import { BookSearch } from "@/components/shelf/book-search";
 
 interface DashboardHeaderProps {
   userEmail: string | undefined;
+  avatarUrl: string | undefined;
 }
 
 const navItems = [
@@ -27,7 +28,10 @@ const navItems = [
   { href: "/dashboard/communities", label: "Communities", icon: Users },
 ];
 
-export function DashboardHeader({ userEmail }: DashboardHeaderProps) {
+export function DashboardHeader({
+  userEmail,
+  avatarUrl,
+}: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
@@ -72,6 +76,12 @@ export function DashboardHeader({ userEmail }: DashboardHeaderProps) {
                 <DropdownMenuTrigger asChild>
                   <button className="focus:outline-none">
                     <Avatar className="h-9 w-9 cursor-pointer transition-opacity hover:opacity-80">
+                      {avatarUrl && (
+                        <AvatarImage
+                          src={avatarUrl}
+                          alt={userEmail || "User"}
+                        />
+                      )}
                       <AvatarFallback className="bg-muted text-muted-foreground">
                         {getInitials(userEmail)}
                       </AvatarFallback>
@@ -98,7 +108,7 @@ export function DashboardHeader({ userEmail }: DashboardHeaderProps) {
                           "rounded-sm p-1.5 transition-colors",
                           theme === "system"
                             ? "bg-background shadow-sm"
-                            : "hover:bg-background/50",
+                            : "hover:bg-background/50"
                         )}
                       >
                         <Monitor className="h-2.5 w-2.5" />
@@ -109,7 +119,7 @@ export function DashboardHeader({ userEmail }: DashboardHeaderProps) {
                           "rounded-sm p-1.5 transition-colors",
                           theme === "light"
                             ? "bg-background shadow-sm"
-                            : "hover:bg-background/50",
+                            : "hover:bg-background/50"
                         )}
                       >
                         <Sun className="h-2.5 w-2.5" />
@@ -120,7 +130,7 @@ export function DashboardHeader({ userEmail }: DashboardHeaderProps) {
                           "rounded-sm p-1.5 transition-colors",
                           theme === "dark"
                             ? "bg-background shadow-sm"
-                            : "hover:bg-background/50",
+                            : "hover:bg-background/50"
                         )}
                       >
                         <Moon className="h-2.5 w-2.5" />
@@ -150,7 +160,7 @@ export function DashboardHeader({ userEmail }: DashboardHeaderProps) {
                   "flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-medium transition-colors",
                   isActive
                     ? "border-foreground text-foreground"
-                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" />

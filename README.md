@@ -53,7 +53,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Project Documentation
 
-- [Settings Page & Literal.club Integration](./SETTINGS.md)
+- [Settings Page](./SETTINGS.md)
 - [Database Schema](./DATABASE_SCHEMA.md)
 - [Supabase Setup](./SUPABASE_SETUP.md)
 - [Social Authentication Setup](./SOCIAL_AUTH_SETUP.md)

@@ -124,8 +124,7 @@ book_id UUID              -- No longer needed
 
 #### 5. Settings Page (`app/dashboard/settings/page.tsx`)
 
-- Literal.club sync now saves directly to `user_books`
-- Removed intermediate step of saving to `books` table
+- Displays user account information
 
 #### 6. Community Feed (`components/community/community-feed.tsx`)
 
@@ -188,7 +187,6 @@ If you need to rollback:
 - [ ] Users can update reading progress
 - [ ] Community feed shows members' books correctly
 - [ ] Book detail pages work for both works and editions
-- [ ] Literal.club sync works
 - [ ] Book editions display correctly
 
 ## Support
