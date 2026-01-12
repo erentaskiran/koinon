@@ -156,7 +156,7 @@ export async function GET(
     // Check if user has this book in their shelf
     const { data: existingUserBook } = await supabase
       .from("user_books")
-      .select("id")
+      .select("id, status")
       .eq("user_id", user.id)
       .eq("book_key", id)
       .maybeSingle();
@@ -164,6 +164,7 @@ export async function GET(
     return NextResponse.json({
       book: bookEdition,
       inUserShelf: !!existingUserBook,
+      userBookStatus: existingUserBook?.status || null,
     });
   }
 

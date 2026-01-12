@@ -19,11 +19,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { BookOpen, MoreVertical } from "lucide-react";
-import { updateUserBook, ReadingStatus } from "@/lib/actions/book-actions";
+import { BookOpen, MoreVertical, Trash2 } from "lucide-react";
+import {
+  updateUserBook,
+  removeBookFromShelf,
+  ReadingStatus,
+} from "@/lib/actions/book-actions";
 
 const readingStatuses = {
+  WANT_TO_READ: "Want to Read",
   IS_READING: "Reading",
   COMPLETED: "Completed",
   PAUSED: "Paused",
@@ -67,6 +82,8 @@ interface BookCardProps {
 export function BookCard({ userBook }: BookCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [status, setStatus] = useState<ReadingStatus>(userBook.status);
   const [progress, setProgress] = useState(userBook.progress || 0);
   const [capacity, setCapacity] = useState(userBook.capacity || 0);
@@ -99,6 +116,24 @@ export function BookCard({ userBook }: BookCardProps) {
       console.error("Failed to update book:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const result = await removeBookFromShelf(userBook.id);
+
+      if (result.error) {
+        console.error("Failed to remove book:", result.error);
+      } else {
+        setShowDeleteDialog(false);
+        setIsOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to remove book:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -217,6 +252,7 @@ export function BookCard({ userBook }: BookCardProps) {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="WANT_TO_READ">Want to Read</SelectItem>
                   <SelectItem value="IS_READING">Reading</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="PAUSED">Paused</SelectItem>
@@ -275,16 +311,58 @@ export function BookCard({ userBook }: BookCardProps) {
             )}
           </div>
 
-          <SheetFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Changes"}
+          <SheetFooter className="flex-col gap-3 sm:flex-col">
+            <div className="flex gap-2 w-full">
+              <Button
+                variant="outline"
+                onClick={() => setIsOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={isLoading}
+                className="flex-1"
+              >
+                {isLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isLoading || isDeleting}
+              className="w-full"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remove from Shelf
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove book from shelf?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove &quot;{userBook.title}&quot; from
+              your shelf? This action cannot be undone and will delete all
+              progress data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

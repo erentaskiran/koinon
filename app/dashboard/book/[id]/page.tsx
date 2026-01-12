@@ -4,20 +4,24 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   BookOpen,
   ArrowLeft,
-  Plus,
   Loader2,
   Calendar,
   Building2,
   BookText,
-  CheckCircle2,
+  Edit,
 } from "lucide-react";
-import { addBookToShelf } from "@/lib/actions/book-actions";
+import {
+  addBookToShelf,
+  updateBookStatus,
+  removeBookByKey,
+  ReadingStatus,
+} from "@/lib/actions/book-actions";
 import { toast } from "sonner";
 import { BookEditions } from "@/components/book/book-editions";
+import { AddBookDialog } from "@/components/shelf/add-book-dialog";
 
 interface WorkDetails {
   workKey: string;
@@ -76,6 +80,10 @@ export default function BookDetailPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inUserShelf, setInUserShelf] = useState(false);
+  const [userBookStatus, setUserBookStatus] = useState<ReadingStatus | null>(
+    null
+  );
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const id = params.id as string;
 
@@ -98,6 +106,7 @@ export default function BookDetailPage() {
         const data = await response.json();
         setBookDetails(data.work || data.book);
         setInUserShelf(data.inUserShelf || false);
+        setUserBookStatus(data.userBookStatus || null);
       } catch (err) {
         console.error("Error fetching book details:", err);
         setError("Failed to load book details");
@@ -111,8 +120,15 @@ export default function BookDetailPage() {
     }
   }, [id]);
 
-  const handleAddToShelf = async () => {
+  const handleAddToShelf = () => {
+    setIsDialogOpen(true);
+  };
+
+  const handleConfirmAdd = async (status: ReadingStatus) => {
     if (!bookDetails) return;
+
+    const isWorkView = isWork(bookDetails);
+    const isEditionView = isEdition(bookDetails);
 
     // Use the appropriate key - work key for works, edition key for editions
     let bookKey: string | undefined;
@@ -123,31 +139,88 @@ export default function BookDetailPage() {
       bookKey = bookDetails.openLibraryKey;
     }
 
-    const bookData = {
-      bookKey,
-      title: bookDetails.title,
-      authors: bookDetails.authors,
-      cover: bookDetails.cover,
-      published_date: isEditionView ? bookDetails.publishDate : undefined,
-      page_count: isEditionView ? bookDetails.pageCount : undefined,
-      language: isEditionView ? bookDetails.language : undefined,
-      source: bookDetails.source,
-    };
-
     setIsAdding(true);
     try {
-      const result = await addBookToShelf(bookData);
+      let result;
+
+      if (inUserShelf && bookKey) {
+        // Update existing book status
+        result = await updateBookStatus(bookKey, status);
+        if (!result.error) {
+          toast.success(`Status updated to "${readingStatuses[status]}"!`);
+        }
+      } else {
+        // Add new book to shelf
+        const bookData = {
+          bookKey,
+          title: bookDetails.title,
+          authors: bookDetails.authors,
+          cover: bookDetails.cover,
+          published_date: isEditionView ? bookDetails.publishDate : undefined,
+          page_count: isEditionView ? bookDetails.pageCount : undefined,
+          language: isEditionView ? bookDetails.language : undefined,
+          source: bookDetails.source,
+        };
+
+        result = await addBookToShelf(bookData, status);
+        if (!result.error) {
+          toast.success(`"${bookDetails.title}" added to your shelf!`);
+          setInUserShelf(true);
+        }
+      }
+
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success(`"${bookDetails.title}" added to your shelf!`);
-        setInUserShelf(true); // Switch UI to show "already in shelf" message
+        setUserBookStatus(status);
+        setIsDialogOpen(false);
         router.refresh();
       }
     } catch (err) {
-      toast.error("Failed to add book to shelf");
+      toast.error(
+        inUserShelf
+          ? "Failed to update book status"
+          : "Failed to add book to shelf"
+      );
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleRemoveBook = async () => {
+    if (!bookDetails) return;
+
+    const isWorkView = isWork(bookDetails);
+    const isEditionView = isEdition(bookDetails);
+
+    // Use the appropriate key - work key for works, edition key for editions
+    let bookKey: string | undefined;
+
+    if (isWorkView) {
+      bookKey = bookDetails.workKey;
+    } else if (isEditionView) {
+      bookKey = bookDetails.openLibraryKey;
+    }
+
+    if (!bookKey) {
+      toast.error("Unable to remove book: no book identifier found");
+      return;
+    }
+
+    try {
+      const result = await removeBookByKey(bookKey);
+
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`"${bookDetails.title}" removed from your shelf!`);
+        setInUserShelf(false);
+        setUserBookStatus(null);
+        setIsDialogOpen(false);
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error("Failed to remove book from shelf");
     }
   };
 
@@ -252,56 +325,41 @@ export default function BookDetailPage() {
             )}
           </div>
 
-          {/* Source Badge */}
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              {isWorkView ? "Open Library Work" : "Edition"}
-            </Badge>
-            {isEditionView && bookDetails.isbn13 && (
-              <Badge variant="secondary" className="text-xs">
-                ISBN: {bookDetails.isbn13}
-              </Badge>
-            )}
-            {isEditionView && bookDetails.format && (
-              <Badge variant="secondary" className="text-xs">
-                {bookDetails.format}
-              </Badge>
+          {/* Action Button */}
+          <div className="pt-2">
+            {inUserShelf && userBookStatus ? (
+              <Button
+                onClick={handleAddToShelf}
+                disabled={isAdding}
+                variant="outline"
+              >
+                {userBookStatus === "WANT_TO_READ" && <>Want to Read</>}
+                {userBookStatus === "IS_READING" && <>Currently Reading</>}
+                {userBookStatus === "COMPLETED" && <>Read</>}
+                {userBookStatus === "PAUSED" && <>Paused</>}
+                {userBookStatus === "ABANDONED" && <>Abandoned</>}
+                <Edit className="h-3 w-3 ml-2 opacity-50" />
+              </Button>
+            ) : (
+              <Button onClick={handleAddToShelf} disabled={isAdding}>
+                Add to Shelf
+              </Button>
             )}
           </div>
-
-          {/* Info if book is already in shelf */}
-          {inUserShelf && (
-            <Alert
-              variant="default"
-              className="border-green-500/50 bg-green-50 dark:bg-green-950/20"
-            >
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
-              <AlertDescription className="text-green-800 dark:text-green-200">
-                This book is already in your shelf
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Action Buttons */}
-          {!inUserShelf && (
-            <div className="pt-2">
-              <Button onClick={handleAddToShelf} disabled={isAdding}>
-                {isAdding ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add to Shelf
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Add Book Dialog */}
+      <AddBookDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onConfirm={handleConfirmAdd}
+        bookTitle={bookDetails.title}
+        isLoading={isAdding}
+        currentStatus={userBookStatus}
+        onRemove={inUserShelf ? handleRemoveBook : undefined}
+        showRemoveButton={inUserShelf}
+      />
 
       {/* Description */}
       {bookDetails.description && (
