@@ -16,8 +16,6 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  console.log("user", user);
-
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader
